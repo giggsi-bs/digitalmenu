@@ -10,6 +10,8 @@ import CategoryItems from "./CategoryItems";
 
 import MenuSchedules from "./MenuSchedules";
 
+import Asi from "./Asi";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
 const PAGES = {
@@ -23,6 +25,8 @@ const PAGES = {
     CategoryItems: CategoryItems,
     
     MenuSchedules: MenuSchedules,
+    
+    Asi: Asi,
     
 }
 
@@ -60,6 +64,8 @@ function PagesContent() {
                 <Route path="/CategoryItems" element={<CategoryItems />} />
                 
                 <Route path="/MenuSchedules" element={<MenuSchedules />} />
+                
+                <Route path="/Asi" element={<Asi />} />
                 
             </Routes>
         </Layout>

@@ -1,7 +1,6 @@
-
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Category } from "@/api/entities";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,11 +13,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function Home() {
-  const [categories, setCategories] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
-  const [currentLang, setCurrentLang] = React.useState('he');
+  const navigate = useNavigate();
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentLang, setCurrentLang] = useState('he');
 
-  React.useEffect(() => {
+  useEffect(() => {
     loadCategories();
   }, []);
 

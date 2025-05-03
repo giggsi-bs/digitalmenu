@@ -11,12 +11,12 @@ export default function Layout({ children }) {
   // Redirect to Home on first load if we're at root
   useEffect(() => {
     if (location.pathname === '/') {
-      window.location.href = '/Home';
+      navigate('/Home');  // שינינו ל-H גדולה
     }
   }, [location.pathname]);
 
   const goToHome = () => {
-    window.location.href = '/Home';
+    navigate('/Home');  // שינינו ל-H גדולה
   };
 
   return (
