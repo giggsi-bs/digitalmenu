@@ -23,7 +23,12 @@ export default function Layout({ children }) {
     <div className="min-h-screen bg-gray-50" dir="rtl">
       {children}
       
-      <nav className="fixed bottom-0 right-0 left-0 bg-white border-t py-2 z-50">
+      {/* כשרות הודעה - שיפור נראות */}
+      <div className="fixed bottom-14 left-0 right-0 bg-red-600 text-white py-2 text-center font-medium text-base z-50 shadow-md">
+        המסעדה כשרה בהשגחת הרבנות והבשר חלק
+      </div>
+      
+      <nav className="fixed bottom-0 right-0 left-0 bg-white border-t py-2 z-50 shadow-up">
         <div className="max-w-md mx-auto flex justify-center">
           <button 
             onClick={goToHome}
