@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,12 +17,6 @@ export default function AddonGroupList({
           <Card key={group.id} className="overflow-hidden">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex-1 text-right">
-                  <h3 className="font-medium text-lg">{group.name_he}</h3>
-                  <Badge variant="outline">
-                    {`${group.addons.length} תוספות`}
-                  </Badge>
-                </div>
                 <Button 
                   variant="ghost" 
                   size="icon"
@@ -32,6 +25,12 @@ export default function AddonGroupList({
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
+                <div className="flex-1 text-right">
+                  <h3 className="font-medium text-lg">{group.name_he}</h3>
+                  <Badge variant="outline">
+                    {`${group.addons.length} תוספות`}
+                  </Badge>
+                </div>
               </div>
               
               <div className="space-y-2 mt-4" dir="rtl">
@@ -40,10 +39,8 @@ export default function AddonGroupList({
                     key={index} 
                     className="flex justify-between items-center bg-gray-50 p-2 rounded"
                   >
-                    <span>{addon.name_he}</span>
-                    {addon.price > 0 && (
-                      <Badge variant="outline">₪{addon.price}</Badge>
-                    )}
+                    <Badge variant="outline">₪{addon.price}</Badge>
+                    <span className="font-medium">{addon.name_he}</span>
                   </div>
                 ))}
               </div>

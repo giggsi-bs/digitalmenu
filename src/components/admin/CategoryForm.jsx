@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { InvokeLLM } from "@/api/integrations";
 import { Save, Languages, Trash } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { MenuSchedule } from "@/api/entities";
 import ImageUploader from './ImageUploader';
 
 export default function CategoryForm({ initialData = null, onSave, onCancel, onDelete }) {
@@ -17,16 +18,46 @@ export default function CategoryForm({ initialData = null, onSave, onCancel, onD
     name_ar: "",
     image_url: "",
     display_order: 0,
+    menu_schedules: [],
     ...initialData
   });
   
   const [isTranslating, setIsTranslating] = useState(false);
   const [activeTab, setActiveTab] = useState('he');
+  const [menuSchedules, setMenuSchedules] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // שמירת הערכים המקוריים בעברית
   const [originalHebrew, setOriginalHebrew] = useState({
     name_he: initialData?.name_he || ""
   });
+
+  useEffect(() => {
+    loadMenuSchedules();
+    if (initialData) {
+      setOriginalHebrew({
+        name_he: initialData.name_he || ""
+      });
+    }
+  }, [initialData]);
+
+  const loadMenuSchedules = async () => {
+    try {
+      const schedules = await MenuSchedule.list();
+      setMenuSchedules(schedules);
+    } catch (error) {
+      console.error("Error loading menu schedules:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   const translateContent = async () => {
     if (!formData.name_he) return;
@@ -90,13 +121,6 @@ export default function CategoryForm({ initialData = null, onSave, onCancel, onD
     onSave(dataToSave);
   };
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
   const languageLabels = {
     he: 'עברית',
     en: 'English',
@@ -107,13 +131,9 @@ export default function CategoryForm({ initialData = null, onSave, onCancel, onD
   return (
     <Card>
       <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="space-y-6 text-right" dir="rtl">
+        <form onSubmit={handleSubmit} className="space-y-6" dir="rtl">
           <div className="space-y-4">
-            <Tabs
-              value={activeTab}
-              onValueChange={setActiveTab}
-              className="w-full mb-4"
-            >
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="w-full">
                 {['he', 'en', 'ru', 'ar'].map(lang => (
                   <TabsTrigger 
@@ -126,26 +146,19 @@ export default function CategoryForm({ initialData = null, onSave, onCancel, onD
                   </TabsTrigger>
                 ))}
               </TabsList>
-              
-              {/* Hebrew Tab */}
-              <TabsContent value="he" className="space-y-4 pt-4">
+
+              <TabsContent value="he">
                 <div className="space-y-2">
                   <Label>שם הקטגוריה</Label>
                   <Input
                     value={formData.name_he}
                     onChange={(e) => handleInputChange("name_he", e.target.value)}
-                    required
                     className="text-right"
                   />
                 </div>
-                
-                <p className="text-sm text-gray-500 mt-2">
-                  שינויים בעברית יתורגמו אוטומטית לשפות האחרות בעת השמירה
-                </p>
               </TabsContent>
-              
-              {/* English Tab */}
-              <TabsContent value="en" className="space-y-4 pt-4">
+
+              <TabsContent value="en">
                 <div className="space-y-2">
                   <Label>שם הקטגוריה (אנגלית)</Label>
                   <Input
@@ -155,9 +168,8 @@ export default function CategoryForm({ initialData = null, onSave, onCancel, onD
                   />
                 </div>
               </TabsContent>
-              
-              {/* Russian Tab */}
-              <TabsContent value="ru" className="space-y-4 pt-4">
+
+              <TabsContent value="ru">
                 <div className="space-y-2">
                   <Label>שם הקטגוריה (רוסית)</Label>
                   <Input
@@ -167,9 +179,8 @@ export default function CategoryForm({ initialData = null, onSave, onCancel, onD
                   />
                 </div>
               </TabsContent>
-              
-              {/* Arabic Tab */}
-              <TabsContent value="ar" className="space-y-4 pt-4">
+
+              <TabsContent value="ar">
                 <div className="space-y-2">
                   <Label>שם הקטגוריה (ערבית)</Label>
                   <Input
@@ -185,7 +196,7 @@ export default function CategoryForm({ initialData = null, onSave, onCancel, onD
               <Label>תמונת הקטגוריה</Label>
               <ImageUploader 
                 value={formData.image_url} 
-                onChange={(url) => handleInputChange("image_url", url)} 
+                onChange={(url) => handleInputChange("image_url", url)}
               />
             </div>
 
@@ -198,9 +209,46 @@ export default function CategoryForm({ initialData = null, onSave, onCancel, onD
                 className="text-right"
               />
             </div>
+
+            <div className="space-y-2">
+              <Label>תפריטים בהם הקטגוריה תוצג</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {menuSchedules.map((schedule) => (
+                  <div key={schedule.id} className="flex items-center space-x-2 space-x-reverse">
+                    <Checkbox
+                      id={`schedule-${schedule.id}`}
+                      checked={formData.menu_schedules?.includes(schedule.id)}
+                      onCheckedChange={(checked) => {
+                        const newSchedules = checked
+                          ? [...(formData.menu_schedules || []), schedule.id]
+                          : formData.menu_schedules?.filter(id => id !== schedule.id);
+                        handleInputChange('menu_schedules', newSchedules);
+                      }}
+                    />
+                    <Label htmlFor={`schedule-${schedule.id}`}>{schedule.name_he}</Label>
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-gray-500">
+                אם לא נבחר אף תפריט, הקטגוריה תוצג תמיד (כאשר אין תפריט פעיל)
+              </p>
+            </div>
           </div>
 
           <div className="flex justify-between items-center">
+            <Button 
+              type="button" 
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (window.confirm('האם אתה בטוח שברצונך למחוק קטגוריה זו?')) {
+                  onDelete(formData.id);
+                }
+              }}
+              className="ml-2"
+            >
+              מחק
+            </Button>
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={onCancel}>
                 ביטול
@@ -210,29 +258,9 @@ export default function CategoryForm({ initialData = null, onSave, onCancel, onD
                 className="bg-red-600 hover:bg-red-700"
                 disabled={isTranslating}
               >
-                {isTranslating ? 'מתרגם...' : 
-                  <>
-                    <Save className="w-4 h-4 ml-2" />
-                    שמור
-                  </>
-                }
+                {isTranslating ? 'מתרגם...' : 'שמור'}
               </Button>
             </div>
-            
-            {initialData && onDelete && (
-              <Button 
-                type="button" 
-                variant="destructive"
-                onClick={() => {
-                  if (window.confirm('האם אתה בטוח שברצונך למחוק קטגוריה זו?')) {
-                    onDelete(initialData.id);
-                  }
-                }}
-              >
-                <Trash className="w-4 h-4 ml-2" />
-                מחק קטגוריה
-              </Button>
-            )}
           </div>
         </form>
       </CardContent>

@@ -7,6 +7,8 @@ export const Category = base44.entities.Category;
 
 export const AddonGroup = base44.entities.AddonGroup;
 
+export const MenuSchedule = base44.entities.MenuSchedule;
+
 
 
 // auth sdk:

@@ -1,14 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { InvokeLLM } from "@/api/integrations";
-import { Plus, Trash, Save, Languages } from "lucide-react";
+import { Plus, Trash, Save } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export default function AddonGroupForm({ initialData = null, onSave, onCancel }) {
+export default function AddonGroupForm({ initialData = null, onSave, onCancel, onDelete }) {
   const [formData, setFormData] = useState({
     name_he: "",
     name_en: "",
@@ -26,6 +25,15 @@ export default function AddonGroupForm({ initialData = null, onSave, onCancel })
     name_he: initialData?.name_he || "",
     addons: initialData?.addons?.map(a => a.name_he) || []
   });
+
+  useEffect(() => {
+    if (initialData) {
+      setOriginalHebrew({
+        name_he: initialData.name_he || "",
+        addons: initialData.addons?.map(a => a.name_he) || []
+      });
+    }
+  }, [initialData]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -49,7 +57,13 @@ export default function AddonGroupForm({ initialData = null, onSave, onCancel })
   const addNewAddon = () => {
     setFormData(prev => ({
       ...prev,
-      addons: [...prev.addons, { name_he: "", price: 0 }]
+      addons: [...prev.addons, { 
+        name_he: "", 
+        name_en: "", 
+        name_ru: "", 
+        name_ar: "", 
+        price: 0 
+      }]
     }));
   };
 
@@ -187,196 +201,184 @@ export default function AddonGroupForm({ initialData = null, onSave, onCancel })
   return (
     <Card>
       <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="space-y-6 text-right" dir="rtl">
+        <form onSubmit={handleSubmit} className="space-y-6" dir="rtl">
+          <h2 className="text-xl font-semibold text-right">
+            {initialData ? "עריכת קבוצת תוספות" : "הוספת קבוצת תוספות חדשה"}
+          </h2>
+
+          {/* קבוצת שמות בשפות שונות */}
           <div className="space-y-4">
-            <Tabs
-              value={activeTab}
-              onValueChange={setActiveTab}
-              className="w-full"
-            >
-              <TabsList className="w-full mb-4">
-                {['he', 'en', 'ru', 'ar'].map(lang => (
-                  <TabsTrigger 
-                    key={lang} 
-                    value={lang}
-                    className="flex-1"
-                    dir={lang === 'ar' ? 'rtl' : 'ltr'}
-                  >
-                    {languageLabels[lang]}
-                  </TabsTrigger>
-                ))}
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="w-full">
+                <TabsTrigger value="he">עברית</TabsTrigger>
+                <TabsTrigger value="en">English</TabsTrigger>
+                <TabsTrigger value="ru">Русский</TabsTrigger>
+                <TabsTrigger value="ar">العربية</TabsTrigger>
               </TabsList>
-              
-              {/* Hebrew Tab */}
-              <TabsContent value="he" className="space-y-4">
-                <div className="space-y-2">
-                  <Label>שם הקבוצה</Label>
-                  <Input
-                    value={formData.name_he}
-                    onChange={(e) => handleInputChange("name_he", e.target.value)}
-                    required
-                    className="text-right"
-                  />
-                </div>
-                
-                <p className="text-sm text-gray-500 mt-2">
-                  שינויים בעברית יתורגמו אוטומטית לשפות האחרות בעת השמירה
-                </p>
+
+              <TabsContent value="he" className="mt-4">
+                <Label>שם הקבוצה</Label>
+                <Input
+                  value={formData.name_he}
+                  onChange={(e) => handleInputChange("name_he", e.target.value)}
+                  className="text-right"
+                />
               </TabsContent>
-              
-              {/* English Tab */}
-              <TabsContent value="en">
-                <div className="space-y-2">
-                  <Label>שם הקבוצה (אנגלית)</Label>
-                  <Input
-                    value={formData.name_en}
-                    onChange={(e) => handleInputChange("name_en", e.target.value)}
-                    dir="ltr"
-                  />
-                </div>
+              <TabsContent value="en" className="mt-4">
+                <Label>שם הקבוצה (אנגלית)</Label>
+                <Input
+                  value={formData.name_en}
+                  onChange={(e) => handleInputChange("name_en", e.target.value)}
+                  dir="ltr"
+                />
               </TabsContent>
-              
-              {/* Russian Tab */}
-              <TabsContent value="ru">
-                <div className="space-y-2">
-                  <Label>שם הקבוצה (רוסית)</Label>
-                  <Input
-                    value={formData.name_ru}
-                    onChange={(e) => handleInputChange("name_ru", e.target.value)}
-                    dir="ltr"
-                  />
-                </div>
+              <TabsContent value="ru" className="mt-4">
+                <Label>שם הקבוצה (רוסית)</Label>
+                <Input
+                  value={formData.name_ru}
+                  onChange={(e) => handleInputChange("name_ru", e.target.value)}
+                  dir="ltr"
+                />
               </TabsContent>
-              
-              {/* Arabic Tab */}
-              <TabsContent value="ar">
-                <div className="space-y-2">
-                  <Label>שם הקבוצה (ערבית)</Label>
-                  <Input
-                    value={formData.name_ar}
-                    onChange={(e) => handleInputChange("name_ar", e.target.value)}
-                    dir="rtl"
-                  />
-                </div>
+              <TabsContent value="ar" className="mt-4">
+                <Label>שם הקבוצה (ערבית)</Label>
+                <Input
+                  value={formData.name_ar}
+                  onChange={(e) => handleInputChange("name_ar", e.target.value)}
+                  dir="rtl"
+                />
               </TabsContent>
             </Tabs>
           </div>
 
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">תוספות</h3>
-              <Button type="button" onClick={addNewAddon}>
+          {/* רשימת תוספות */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <Button type="button" onClick={addNewAddon} variant="outline">
                 <Plus className="w-4 h-4 ml-2" />
                 הוסף תוספת
               </Button>
+              <h3 className="text-lg font-medium">תוספות</h3>
             </div>
 
             <div className="space-y-4">
               {formData.addons.map((addon, index) => (
                 <Card key={index}>
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col space-y-4">
-                      <Tabs defaultValue="he" className="w-full">
-                        <TabsList className="w-full mb-4">
-                          {['he', 'en', 'ru', 'ar'].map(lang => (
-                            <TabsTrigger 
-                              key={lang} 
-                              value={lang}
-                              className="flex-1"
-                              dir={lang === 'ar' ? 'rtl' : 'ltr'}
-                            >
-                              {languageLabels[lang]}
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
-                        
-                        {/* Hebrew Tab */}
-                        <TabsContent value="he" className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label>שם התוספת</Label>
-                              <Input
-                                value={addon.name_he}
-                                onChange={(e) => handleAddonChange(index, "name_he", e.target.value)}
-                                required
-                                className="text-right"
-                              />
-                            </div>
-                            <div>
-                              <Label>מחיר</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.1"
-                                value={addon.price}
-                                onChange={(e) => handleAddonChange(index, "price", Number(e.target.value))}
-                                required
-                                className="text-right"
-                              />
-                            </div>
+                  <CardContent className="p-4">
+                    <div className="space-y-4">
+                      {/* שדות תוספת לפי שפה */}
+                      {activeTab === 'he' && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1">
+                            <Label>שם התוספת</Label>
+                            <Input
+                              value={addon.name_he}
+                              onChange={(e) => handleAddonChange(index, "name_he", e.target.value)}
+                              className="text-right"
+                            />
                           </div>
-                        </TabsContent>
-                        
-                        {/* English Tab */}
-                        <TabsContent value="en">
-                          <Label>שם התוספת (אנגלית)</Label>
-                          <Input
-                            value={addon.name_en || ""}
-                            onChange={(e) => handleAddonChange(index, "name_en", e.target.value)}
-                            dir="ltr"
-                          />
-                        </TabsContent>
-                        
-                        {/* Russian Tab */}
-                        <TabsContent value="ru">
-                          <Label>שם התוספת (רוסית)</Label>
-                          <Input
-                            value={addon.name_ru || ""}
-                            onChange={(e) => handleAddonChange(index, "name_ru", e.target.value)}
-                            dir="ltr"
-                          />
-                        </TabsContent>
-                        
-                        {/* Arabic Tab */}
-                        <TabsContent value="ar">
-                          <Label>שם התוספת (ערבית)</Label>
-                          <Input
-                            value={addon.name_ar || ""}
-                            onChange={(e) => handleAddonChange(index, "name_ar", e.target.value)}
-                            dir="rtl"
-                          />
-                        </TabsContent>
-                      </Tabs>
+                          <div className="w-32">
+                            <Label>מחיר</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              value={addon.price}
+                              onChange={(e) => handleAddonChange(index, "price", Number(e.target.value))}
+                              className="text-right"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-700 mt-6"
+                            onClick={() => removeAddon(index)}
+                          >
+                            <Trash className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
                       
-                      <div className="flex justify-start">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="text-red-500 hover:text-red-700"
-                          onClick={() => removeAddon(index)}
-                        >
-                          <Trash className="w-4 h-4 ml-2" />
-                          הסר תוספת
-                        </Button>
-                      </div>
+                      {activeTab === 'en' && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1">
+                            <Label>שם התוספת (אנגלית)</Label>
+                            <Input
+                              value={addon.name_en}
+                              onChange={(e) => handleAddonChange(index, "name_en", e.target.value)}
+                              dir="ltr"
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {activeTab === 'ru' && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1">
+                            <Label>שם התוספת (רוסית)</Label>
+                            <Input
+                              value={addon.name_ru}
+                              onChange={(e) => handleAddonChange(index, "name_ru", e.target.value)}
+                              dir="ltr"
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {activeTab === 'ar' && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1">
+                            <Label>שם התוספת (ערבית)</Label>
+                            <Input
+                              value={addon.name_ar}
+                              onChange={(e) => handleAddonChange(index, "name_ar", e.target.value)}
+                              dir="rtl"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
+            
+            <p className="text-sm text-gray-500 mt-2 text-right">
+              שינויים בשפה העברית יתורגמו אוטומטית לשפות האחרות בעת השמירה
+            </p>
           </div>
 
-          <div className="flex justify-start gap-2">
-            {onCancel && (
-              <Button type="button" variant="outline" onClick={onCancel}>
-                ביטול
+          {/* כפתורים בתחתית הטופס */}
+          <div className="flex flex-col gap-4 border-t pt-6">
+            <div className="flex justify-between items-center">
+              <Button 
+                type="button" 
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  if (window.confirm('האם אתה בטוח שברצונך למחוק קבוצת תוספות זו?')) {
+                    onDelete(initialData.id);
+                  }
+                }}
+                className="ml-2"
+                disabled={!initialData}
+              >
+                מחק
               </Button>
-            )}
-            <Button type="submit" className="bg-red-600 hover:bg-red-700">
-              <Save className="w-4 h-4 ml-2" />
-              שמור
-            </Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={onCancel}>
+                  ביטול
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="bg-red-600 hover:bg-red-700"
+                  disabled={isTranslating}
+                >
+                  {isTranslating ? 'מתרגם...' : 'שמור'}
+                </Button>
+              </div>
+            </div>
           </div>
         </form>
       </CardContent>

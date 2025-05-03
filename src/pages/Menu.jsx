@@ -7,7 +7,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronRight, Plus, Globe, ArrowRight } from "lucide-react"; // כפתור חזרה עם חץ
+import { ChevronRight, Plus, Globe, ArrowRight } from "lucide-react";
 import { 
   DropdownMenu, 
   DropdownMenuTrigger, 
@@ -15,6 +15,7 @@ import {
   DropdownMenuItem 
 } from "@/components/ui/dropdown-menu";
 import { createPageUrl } from "@/utils";
+import { MenuSchedule } from "@/api/entities";
 
 export default function Menu() {
   const location = useLocation();
@@ -30,9 +31,12 @@ export default function Menu() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedAddons, setSelectedAddons] = useState(null);
   const [addonGroups, setAddonGroups] = useState([]);
+  const [activeSchedule, setActiveSchedule] = useState(null);
+  const [schedules, setSchedules] = useState([]);
 
   useEffect(() => {
     loadAllCategories();
+    loadMenuSchedules();
   }, []);
 
   useEffect(() => {
@@ -43,6 +47,44 @@ export default function Menu() {
       navigate(createPageUrl(`Menu?category=${categories[0].id}`));
     }
   }, [categoryId, categories, navigate]);
+
+  const loadMenuSchedules = async () => {
+    try {
+      const allSchedules = await MenuSchedule.list();
+      setSchedules(allSchedules);
+      
+      // בדוק אם יש תפריט עם סימון override
+      const overrideSchedule = allSchedules.find(s => s.is_active && s.is_override);
+      if (overrideSchedule) {
+        setActiveSchedule(overrideSchedule);
+        return;
+      }
+      
+      // לא נמצא תפריט עם override, בדוק לפי זמנים
+      const now = new Date();
+      const currentDay = now.getDay(); // 0-6, יום ראשון הוא 0
+      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      
+      // בדוק כל תפריט ומצא את הראשון שמתאים לזמן הנוכחי
+      const matchingSchedule = allSchedules.find(schedule => 
+        schedule.is_active &&
+        schedule.schedule.some(timeSlot => {
+          // בדוק אם היום הנוכחי נמצא ברשימת הימים
+          const dayMatches = timeSlot.days.includes(currentDay);
+          if (!dayMatches) return false;
+          
+          // בדוק אם השעה הנוכחית בטווח השעות
+          return currentTime >= timeSlot.start_time && currentTime <= timeSlot.end_time;
+        })
+      );
+      
+      if (matchingSchedule) {
+        setActiveSchedule(matchingSchedule);
+      }
+    } catch (error) {
+      console.error("Error loading menu schedules:", error);
+    }
+  };
 
   const loadAllCategories = async () => {
     try {
@@ -68,10 +110,28 @@ export default function Menu() {
         MenuItem.filter({ category_id: categoryId }, 'display_order')
       ]);
       setCategory(categoryData);
-      setItems(menuItems);
+      
+      // פילטור הפריטים על פי התפריט הפעיל
+      let filteredItems = [...menuItems];
+      
+      if (activeSchedule) {
+        // אם יש תפריט פעיל, הצג רק פריטים שמוגדרים בתפריט זה או פריטים שלא משויכים לאף תפריט
+        filteredItems = menuItems.filter(item => 
+          item.is_active && (
+            !item.menu_schedules || // אם אין הגדרת תפריטים למנה
+            item.menu_schedules.length === 0 || // אם רשימת התפריטים ריקה
+            item.menu_schedules.includes(activeSchedule.id) // אם המנה משויכת לתפריט הפעיל
+          )
+        );
+      } else {
+        // אם אין תפריט פעיל, הצג את כל המנות הפעילות
+        filteredItems = menuItems.filter(item => item.is_active);
+      }
+      
+      setItems(filteredItems);
 
       // Load all addon groups for this category's items
-      const groupIds = [...new Set(menuItems.flatMap(item => item.addon_groups || []))];
+      const groupIds = [...new Set(filteredItems.flatMap(item => item.addon_groups || []))];
       if (groupIds.length) {
         const groups = await Promise.all(groupIds.map(id => AddonGroup.get(id)));
         setAddonGroups(groups);
@@ -92,6 +152,19 @@ export default function Menu() {
     return item[`description_${currentLang}`] || item.description_he || '';
   };
 
+  // Helper function to get addon group name in current language
+  const getAddonGroupName = (groupId) => {
+    const group = addonGroups.find(g => g.id === groupId);
+    if (!group) return '';
+    return group[`name_${currentLang}`] || group.name_he;
+  };
+
+  // Helper function to get addon name in current language
+  const getAddonName = (addon) => {
+    if (!addon) return '';
+    return addon[`name_${currentLang}`] || addon.name_he || '';
+  };
+
   const switchCategory = (newCategoryId) => {
     navigate(createPageUrl(`Menu?category=${newCategoryId}`));
   };
@@ -105,7 +178,7 @@ export default function Menu() {
     if (!selectedItem) return 0;
     let total = selectedItem.price;
     
-    Object.entries(selectedAddons).forEach(([groupId, selections]) => {
+    Object.entries(selectedAddons || {}).forEach(([groupId, selections]) => {
       const group = addonGroups.find(g => g.id === groupId);
       if (group) {
         selections.forEach(addonIndex => {
@@ -120,7 +193,7 @@ export default function Menu() {
   const toggleAddon = (groupId, addonIndex) => {
     setSelectedAddons(prev => {
       const group = addonGroups.find(g => g.id === groupId);
-      const currentSelections = prev[groupId] || [];
+      const currentSelections = prev?.[groupId] || [];
       
       if (currentSelections.includes(addonIndex)) {
         return {
@@ -128,7 +201,7 @@ export default function Menu() {
           [groupId]: currentSelections.filter(i => i !== addonIndex)
         };
       } else {
-        if (currentSelections.length >= group.max_selections) {
+        if (group?.max_selections && currentSelections.length >= group.max_selections) {
           return {
             ...prev,
             [groupId]: [...currentSelections.slice(1), addonIndex]
@@ -151,7 +224,7 @@ export default function Menu() {
 
   // תיקון הניווט לדף הבית
   const goToHome = () => {
-    window.location.href = '/Home';  // ניווט ישיר לדף הבית
+    window.location.href = '/Home';
   };
 
   const goToAdmin = () => {
@@ -162,15 +235,13 @@ export default function Menu() {
     return (
       <div className="max-w-md mx-auto pb-20">
         <header className="bg-red-600 text-white p-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              onClick={goToHome}
-              className="text-white hover:bg-red-700"
-            >
-              חזרה לקטגוריות
-            </Button>
-          </div>
+          <Button 
+            variant="ghost" 
+            onClick={goToHome}
+            className="text-white hover:bg-red-700"
+          >
+            חזרה לקטגוריות
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="text-white hover:bg-red-700">
@@ -211,9 +282,18 @@ export default function Menu() {
         >
           <ArrowRight className="h-5 w-5" />
         </Button>
-        <h1 className="text-lg font-medium" dir={currentLang === 'ar' ? 'rtl' : 'ltr'}>
-          {category ? getName(category) : <Skeleton className="h-6 w-24" />}
-        </h1>
+        
+        <div className="flex flex-col items-center">
+          <h1 className="text-lg font-medium" dir={currentLang === 'ar' ? 'rtl' : 'ltr'}>
+            {category ? getName(category) : <Skeleton className="h-6 w-24" />}
+          </h1>
+          {activeSchedule && (
+            <div className="text-xs opacity-80 bg-red-700 px-2 py-0.5 rounded-full mt-1">
+              {activeSchedule[`name_${currentLang}`] || activeSchedule.name_he}
+            </div>
+          )}
+        </div>
+        
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="text-white hover:bg-red-700">
@@ -248,7 +328,7 @@ export default function Menu() {
           items.map((item) => (
             <div 
               key={item.id} 
-              className="flex items-start gap-4 bg-white p-4 rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+              className="grid grid-cols-[auto,1fr,auto] gap-4 bg-white p-4 rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => setSelectedItem(item)}
               dir="rtl"
             >
@@ -257,15 +337,15 @@ export default function Menu() {
                 <img 
                   src={item.image_url} 
                   alt={getName(item)}
-                  className="w-24 h-24 object-cover rounded-lg flex-shrink-0"
+                  className="w-24 h-24 object-cover rounded-lg"
                 />
               )}
               
               {/* תוכן באמצע */}
-              <div className="flex-1 text-right">
-                <h3 className="font-medium text-lg">{getName(item)}</h3>
+              <div className="flex flex-col min-w-0">
+                <h3 className="font-medium text-lg truncate">{getName(item)}</h3>
                 {getDescription(item) && (
-                  <p className="text-gray-600 text-sm mt-1">{getDescription(item)}</p>
+                  <p className="text-gray-600 text-sm mt-1 line-clamp-2">{getDescription(item)}</p>
                 )}
                 {item.addon_groups?.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
@@ -280,8 +360,9 @@ export default function Menu() {
                             e.stopPropagation();
                             setSelectedAddons({ groupId, addons: group.addons });
                           }}
+                          className="max-w-full truncate"
                         >
-                          {group.name_he}
+                          {getAddonGroupName(groupId)}
                         </Button>
                       ) : null;
                     })}
@@ -289,8 +370,8 @@ export default function Menu() {
                 )}
               </div>
 
-              {/* מחיר בצד שמאל - בשחור במקום אדום */}
-              <div className="text-lg font-medium">
+              {/* מחיר בצד שמאל */}
+              <div className="text-lg font-medium whitespace-nowrap">
                 ₪{item.price}
               </div>
             </div>
@@ -298,11 +379,11 @@ export default function Menu() {
         )}
       </div>
 
-      {/* Dialog for item details - fix X position */}
+      {/* Dialog for item details */}
       <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" onClose={() => setSelectedItem(null)}>
           <DialogHeader className="text-right">
-            <DialogTitle dir="rtl">
+            <DialogTitle dir="rtl" className="break-words">
               {selectedItem && getName(selectedItem)}
             </DialogTitle>
           </DialogHeader>
@@ -317,7 +398,7 @@ export default function Menu() {
 
           <div className="space-y-4 text-right" dir="rtl">
             {getDescription(selectedItem) && (
-              <p className="text-gray-600">{getDescription(selectedItem)}</p>
+              <p className="text-gray-600 break-words">{getDescription(selectedItem)}</p>
             )}
             <p className="text-lg font-medium">₪{selectedItem?.price}</p>
             
@@ -330,13 +411,12 @@ export default function Menu() {
                   
                   return (
                     <div key={groupId} className="border rounded-md p-3">
-                      <h4 className="font-medium mb-2">{group.name_he}</h4>
+                      <h4 className="font-medium mb-2 break-words">{getAddonGroupName(groupId)}</h4>
                       <div className="space-y-2">
                         {group.addons.map((addon, idx) => (
-                          <div key={idx} className="flex justify-between">
-                            {/* החלפת המחיר לשמאל והשם לימין */}
-                            <span>{addon.name_he}</span>
-                            <span className="text-gray-600">
+                          <div key={idx} className="grid grid-cols-[1fr,auto] gap-2">
+                            <span className="break-words text-right">{getAddonName(addon)}</span>
+                            <span className="text-gray-600 whitespace-nowrap">
                               {addon.price > 0 ? `₪${addon.price}` : ''}
                             </span>
                           </div>
@@ -351,15 +431,15 @@ export default function Menu() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog for addon group details - fix layout */}
+      {/* Dialog for addon group details */}
       <Dialog 
         open={!!selectedAddons} 
         onOpenChange={() => setSelectedAddons(null)}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" onClose={() => setSelectedAddons(null)}>
           <DialogHeader className="text-right">
-            <DialogTitle dir="rtl">
-              {addonGroups.find(g => g.id === selectedAddons?.groupId)?.name_he}
+            <DialogTitle dir="rtl" className="break-words">
+              {selectedAddons && getAddonGroupName(selectedAddons.groupId)}
             </DialogTitle>
           </DialogHeader>
           
@@ -367,13 +447,13 @@ export default function Menu() {
             {selectedAddons?.addons.map((addon, index) => (
               <div 
                 key={index}
-                className="flex justify-between items-center p-2 rounded hover:bg-gray-50"
+                className="grid grid-cols-[1fr,auto] gap-4 items-center p-2 rounded hover:bg-gray-50"
                 dir="rtl"
               >
-                <span>{addon.name_he}</span>
-                {addon.price > 0 && (
-                  <span className="text-gray-600">₪{addon.price}</span>
-                )}
+                <span className="break-words text-right">{getAddonName(addon)}</span>
+                <span className="text-gray-600 whitespace-nowrap">
+                  {addon.price > 0 ? `₪${addon.price}` : ''}
+                </span>
               </div>
             ))}
           </div>

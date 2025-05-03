@@ -8,6 +8,8 @@ import Admin from "./Admin";
 
 import CategoryItems from "./CategoryItems";
 
+import MenuSchedules from "./MenuSchedules";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
 const PAGES = {
@@ -19,6 +21,8 @@ const PAGES = {
     Admin: Admin,
     
     CategoryItems: CategoryItems,
+    
+    MenuSchedules: MenuSchedules,
     
 }
 
@@ -54,6 +58,8 @@ function PagesContent() {
                 <Route path="/Admin" element={<Admin />} />
                 
                 <Route path="/CategoryItems" element={<CategoryItems />} />
+                
+                <Route path="/MenuSchedules" element={<MenuSchedules />} />
                 
             </Routes>
         </Layout>

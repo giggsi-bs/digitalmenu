@@ -11,6 +11,7 @@ import { InvokeLLM } from "@/api/integrations";
 import { Save, Languages } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ImageUploader from './ImageUploader';
+import { MenuSchedule } from "@/api/entities";
 
 export default function MenuItemForm({ initialData = null, categories = [], addonGroups = [], onSave, onCancel }) {
   const [formData, setFormData] = useState({
@@ -27,12 +28,30 @@ export default function MenuItemForm({ initialData = null, categories = [], addo
     description_ar: "",
     category_id: categories[0]?.id || "",
     addon_groups: [],
+    menu_schedules: [], // הוספת שדה חדש
     is_active: true,
     ...initialData
   });
   
   const [isTranslating, setIsTranslating] = useState(false);
   const [activeTab, setActiveTab] = useState('he');
+  const [menuSchedules, setMenuSchedules] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadMenuSchedules();
+  }, []);
+
+  const loadMenuSchedules = async () => {
+    try {
+      const schedules = await MenuSchedule.list();
+      setMenuSchedules(schedules);
+    } catch (error) {
+      console.error("Error loading menu schedules:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // שמירת הערכים המקוריים בעברית
   const [originalHebrew, setOriginalHebrew] = useState({
@@ -339,6 +358,30 @@ export default function MenuItemForm({ initialData = null, categories = [], addo
               ))}
             </div>
           </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>תפריטים בהם המנה תוצג</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {menuSchedules.map((schedule) => (
+                <div key={schedule.id} className="flex items-center space-x-2 space-x-reverse">
+                  <Checkbox
+                    id={`schedule-${schedule.id}`}
+                    checked={formData.menu_schedules?.includes(schedule.id)}
+                    onCheckedChange={(checked) => {
+                      const newSchedules = checked
+                        ? [...(formData.menu_schedules || []), schedule.id]
+                        : formData.menu_schedules?.filter(id => id !== schedule.id);
+                      handleInputChange('menu_schedules', newSchedules);
+                    }}
+                  />
+                  <Label htmlFor={`schedule-${schedule.id}`}>{schedule.name_he}</Label>
+                </div>
+              ))}
+            </div>
+            <p className="text-sm text-gray-500">
+              אם לא נבחר אף תפריט, המנה תוצג תמיד (כאשר אין תפריט פעיל)
+            </p>
           </div>
 
           <div className="flex justify-start gap-2">
