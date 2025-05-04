@@ -2,33 +2,34 @@
 import React, { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Home } from "lucide-react";
-import { createPageUrl } from "@/utils";
-import { User } from "@/api/entities";
 
 export default function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Try to bypass authentication
+  // Auto-redirect from root path
   useEffect(() => {
-    // Skip login page if redirected from there
-    const currentUrl = window.location.href;
-    if (currentUrl.includes('login?from_url=')) {
-      const targetUrl = new URL(currentUrl).searchParams.get('from_url');
-      if (targetUrl) {
-        window.location.href = targetUrl;
-        return;
-      }
-    }
-
-    // Redirect to Home on first load if we're at root
     if (location.pathname === '/') {
-      navigate('/Home');
+      window.location.href = '/Home';
     }
   }, [location.pathname]);
 
+  // Handle login redirect
+  useEffect(() => {
+    // Detect if we're being redirected to login page
+    const currentUrl = window.location.href;
+    if (currentUrl.includes('login') || currentUrl.includes('auth')) {
+      // Get target URL from query params if it exists
+      const urlParams = new URLSearchParams(window.location.search);
+      const targetUrl = urlParams.get('from_url') || urlParams.get('redirect') || '/Home';
+      
+      // Direct redirect to bypass login
+      window.location.href = targetUrl;
+    }
+  }, [window.location.href]);
+
   const goToHome = () => {
-    navigate('/Home');
+    window.location.href = '/Home';
   };
 
   return (

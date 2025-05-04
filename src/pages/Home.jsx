@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Category } from "@/api/entities";
 import { Link, useNavigate } from "react-router-dom";
@@ -12,7 +11,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User } from "@/api/entities";
 
 export default function Home() {
   const navigate = useNavigate();
