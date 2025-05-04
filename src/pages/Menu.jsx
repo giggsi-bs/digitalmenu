@@ -16,9 +16,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { createPageUrl } from "@/utils";
 import { MenuSchedule } from "@/api/entities";
-import NetlifyHandler from "../components/NetlifyHandler";
+import NetlifyHandler from "@/components/NetlifyHandler";
 
 export default function Menu() {
+  // Add redirect logic directly in the component
+  useEffect(() => {
+    const currentUrl = window.location.href;
+    if (currentUrl.includes('login') || currentUrl.includes('auth')) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const targetUrl = urlParams.get('from_url') || urlParams.get('redirect') || '/Home';
+      window.location.replace(targetUrl);
+    }
+  }, []);
+
   const location = useLocation();
   const navigate = useNavigate();
   const urlParams = new URLSearchParams(location.search);

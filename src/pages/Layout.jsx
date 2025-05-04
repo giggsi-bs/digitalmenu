@@ -2,7 +2,6 @@
 import React, { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Home } from "lucide-react";
-import NetlifyHandler from "./components/NetlifyHandler";
 
 export default function Layout({ children }) {
   const navigate = useNavigate();
@@ -11,17 +10,24 @@ export default function Layout({ children }) {
   // Auto-redirect from root path
   useEffect(() => {
     if (location.pathname === '/') {
-      navigate('/Home');  // שינינו ל-H גדולה
+      navigate('/Home');
+    }
+    
+    // Handle login redirect
+    const currentUrl = window.location.href;
+    if (currentUrl.includes('login') || currentUrl.includes('auth')) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const targetUrl = urlParams.get('from_url') || urlParams.get('redirect') || '/Home';
+      window.location.replace(targetUrl);
     }
   }, [location.pathname]);
 
   const goToHome = () => {
-    navigate('/Home');  // שינינו ל-H גדולה
+    navigate('/Home');
   };
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
-      <NetlifyHandler />
       {children}
       
       {/* כשרות הודעה - שיפור נראות */}

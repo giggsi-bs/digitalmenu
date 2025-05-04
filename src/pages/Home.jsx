@@ -6,7 +6,7 @@ import { createPageUrl } from "@/utils";
 import { Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import NetlifyHandler from "../components/NetlifyHandler";
+import NetlifyHandler from "@/components/NetlifyHandler";
 import {
   DropdownMenu,
   DropdownMenuContent,
