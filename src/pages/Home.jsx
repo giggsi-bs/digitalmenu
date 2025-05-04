@@ -1,12 +1,11 @@
-
 import React, { useState, useEffect } from "react";
 import { Category } from "@/api/entities";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Globe } from "lucide-react";
+import BypassAuth from "@/components/BypassAuth"; // Import the bypass component
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import NetlifyHandler from "@/components/NetlifyHandler";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,30 +19,25 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [currentLang, setCurrentLang] = useState('he');
 
-  // Auto-redirect logic for Netlify deployed site
-  useEffect(() => {
-    // Detect if we're being redirected to login page
-    const isLoginPage = window.location.href.includes('login') || 
-                        window.location.href.includes('auth');
-    
-    if (isLoginPage) {
-      // Extract the target URL and redirect
-      const urlParams = new URLSearchParams(window.location.search);
-      const targetUrl = urlParams.get('from_url') || urlParams.get('redirect') || '/Home';
-      window.location.replace(targetUrl);
-    }
-  }, []);
-
   useEffect(() => {
     loadCategories();
   }, []);
 
   const loadCategories = async () => {
     try {
-      const items = await Category.list('display_order');
-      setCategories(items);
+      // Try to load categories, with error handling
+      const items = await Category.list('display_order').catch(() => []);
+      if (items.length === 0) {
+        // If no items, set empty array and stop loading
+        setCategories([]);
+        setLoading(false);
+        return;
+      }
+      
+      // Use demo items if that's all we have
+      const nonDemoItems = items.filter(item => !item.is_demo);
+      setCategories(nonDemoItems.length > 0 ? nonDemoItems : items);
     } catch (error) {
-      // אם יש שגיאת הרשאות, נתעלם ממנה ופשוט נמשיך
       console.error("Error loading categories:", error);
       setCategories([]);
     } finally {
@@ -68,7 +62,8 @@ export default function Home() {
 
   return (
     <div className="max-w-md mx-auto pb-20">
-      <NetlifyHandler />
+      <BypassAuth /> {/* Add the bypass component */}
+      
       <header className="bg-red-600 text-white p-4 flex justify-between items-center">
         <div className="flex-1 text-center">
           <h1 className="text-2xl font-bold">גיגסי ספורט בר</h1>
@@ -100,6 +95,10 @@ export default function Home() {
           Array(4).fill(0).map((_, i) => (
             <Skeleton key={i} className="aspect-square rounded-lg" />
           ))
+        ) : categories.length === 0 ? (
+          <div className="col-span-2 text-center py-12 text-gray-500">
+            לא נמצאו קטגוריות. אנא נסה לרענן את הדף או צור קשר עם מנהל המערכת.
+          </div>
         ) : (
           categories.map((category) => (
             <Link

@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronRight, Plus, Globe, ArrowRight } from "lucide-react";
+import BypassAuth from "@/components/BypassAuth"; // Import the bypass component
 import { 
   DropdownMenu, 
   DropdownMenuTrigger, 
@@ -16,19 +17,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { createPageUrl } from "@/utils";
 import { MenuSchedule } from "@/api/entities";
-import NetlifyHandler from "@/components/NetlifyHandler";
 
 export default function Menu() {
-  // Add redirect logic directly in the component
-  useEffect(() => {
-    const currentUrl = window.location.href;
-    if (currentUrl.includes('login') || currentUrl.includes('auth')) {
-      const urlParams = new URLSearchParams(window.location.search);
-      const targetUrl = urlParams.get('from_url') || urlParams.get('redirect') || '/Home';
-      window.location.replace(targetUrl);
-    }
-  }, []);
-
   const location = useLocation();
   const navigate = useNavigate();
   const urlParams = new URLSearchParams(location.search);
@@ -65,30 +55,31 @@ export default function Menu() {
 
   const loadMenuSchedules = async () => {
     try {
+      // Try to load actual schedules, but load demo ones if that fails
       const allSchedules = await MenuSchedule.list();
-      setSchedules(allSchedules);
       
-      // בדוק אם יש תפריט עם סימון override
-      const overrideSchedule = allSchedules.find(s => s.is_active && s.is_override);
+      // If we have non-demo schedules, use those
+      const nonDemoSchedules = allSchedules.filter(s => !s.is_demo);
+      const schedulesToUse = nonDemoSchedules.length > 0 ? nonDemoSchedules : allSchedules.filter(s => s.is_demo);
+      
+      setSchedules(schedulesToUse);
+      
+      // Processing logic stays the same
+      const overrideSchedule = schedulesToUse.find(s => s.is_active && s.is_override);
       if (overrideSchedule) {
         setActiveSchedule(overrideSchedule);
         return;
       }
       
-      // לא נמצא תפריט עם override, בדוק לפי זמנים
       const now = new Date();
-      const currentDay = now.getDay(); // 0-6, יום ראשון הוא 0
+      const currentDay = now.getDay();
       const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       
-      // בדוק כל תפריט ומצא את הראשון שמתאים לזמן הנוכחי
-      const matchingSchedule = allSchedules.find(schedule => 
+      const matchingSchedule = schedulesToUse.find(schedule => 
         schedule.is_active &&
         schedule.schedule.some(timeSlot => {
-          // בדוק אם היום הנוכחי נמצא ברשימת הימים
           const dayMatches = timeSlot.days.includes(currentDay);
           if (!dayMatches) return false;
-          
-          // בדוק אם השעה הנוכחית בטווח השעות
           return currentTime >= timeSlot.start_time && currentTime <= timeSlot.end_time;
         })
       );
@@ -104,11 +95,16 @@ export default function Menu() {
   const loadAllCategories = async () => {
     try {
       const allCategories = await Category.list('display_order');
-      setCategories(allCategories);
+      
+      // Filter out demo categories if we have real ones
+      const nonDemoCategories = allCategories.filter(c => !c.is_demo);
+      const categoriesToUse = nonDemoCategories.length > 0 ? nonDemoCategories : allCategories.filter(c => c.is_demo);
+      
+      setCategories(categoriesToUse);
       
       // If we don't have a category ID but have categories, use the first one
-      if (!categoryId && allCategories.length > 0) {
-        navigate(createPageUrl(`Menu?category=${allCategories[0].id}`));
+      if (!categoryId && categoriesToUse.length > 0) {
+        navigate(createPageUrl(`Menu?category=${categoriesToUse[0].id}`));
       }
     } catch (error) {
       console.error("Error loading categories:", error);
@@ -120,15 +116,35 @@ export default function Menu() {
     
     setLoading(true);
     try {
-      const [categoryData, menuItems] = await Promise.all([
-        Category.get(categoryId).catch(() => null),  // אם נכשל, נחזיר null
-        MenuItem.filter({ category_id: categoryId }, 'display_order').catch(() => [])  // אם נכשל, נחזיר מערך ריק
-      ]);
+      // Get category data and menu items
+      const categoryData = await Category.get(categoryId).catch(() => null);
+      
+      // If we couldn't get the category, try to get a demo one
+      const useDemoData = !categoryData || categoryData.is_demo;
+      
+      let menuItems = [];
+      try {
+        menuItems = await MenuItem.filter({ category_id: categoryId }, 'display_order');
+      } catch (error) {
+        console.error("Error loading menu items, trying demo data:", error);
+      }
+      
+      // If we need to use demo data or have no items, try to get demo items
+      if (useDemoData || menuItems.length === 0) {
+        try {
+          const demoItems = await MenuItem.filter({ is_demo: true }, 'display_order');
+          if (demoItems.length > 0) {
+            menuItems = demoItems.filter(item => item.category_id === categoryId);
+          }
+        } catch (error) {
+          console.error("Error loading demo items:", error);
+        }
+      }
 
       if (categoryData) {
         setCategory(categoryData);
         
-        // פילטור הפריטים על פי התפריט הפעיל
+        // Filter the items based on the active schedule
         let filteredItems = [...menuItems];
         
         if (activeSchedule) {
@@ -145,13 +161,29 @@ export default function Menu() {
         
         setItems(filteredItems);
 
-        // Load all addon groups for this category's items
+        // Load addon groups for items
         const groupIds = [...new Set(filteredItems.flatMap(item => item.addon_groups || []))];
         if (groupIds.length) {
-          const groups = await Promise.all(
-            groupIds.map(id => AddonGroup.get(id).catch(() => null))
-          );
-          setAddonGroups(groups.filter(Boolean));  // סינון של null values
+          let groups = [];
+          try {
+            groups = await Promise.all(
+              groupIds.map(id => AddonGroup.get(id).catch(() => null))
+            );
+          } catch (error) {
+            console.error("Error loading addon groups, trying demo groups:", error);
+            
+            // Try to get demo addon groups
+            try {
+              const demoGroups = await AddonGroup.filter({ is_demo: true });
+              if (demoGroups.length > 0) {
+                groups = demoGroups.filter(group => groupIds.includes(group.id));
+              }
+            } catch (error) {
+              console.error("Error loading demo addon groups:", error);
+            }
+          }
+          
+          setAddonGroups(groups.filter(Boolean));
         }
       }
     } catch (error) {
@@ -252,6 +284,7 @@ export default function Menu() {
   if (loading && !category) {
     return (
       <div className="max-w-md mx-auto pb-20">
+        <BypassAuth /> {/* Add the bypass component */}
         <header className="bg-red-600 text-white p-4 flex justify-between items-center">
           <Button 
             variant="ghost" 
@@ -291,7 +324,8 @@ export default function Menu() {
 
   return (
     <div className="max-w-md mx-auto pb-20">
-      <NetlifyHandler />
+      <BypassAuth /> {/* Add the bypass component */}
+      
       <header className="bg-red-600 text-white p-4 flex justify-between items-center">
         <Button 
           variant="ghost" 
