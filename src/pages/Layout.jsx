@@ -2,6 +2,7 @@
 import React, { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Home } from "lucide-react";
+import NetlifyHandler from "./components/NetlifyHandler";
 
 export default function Layout({ children }) {
   const navigate = useNavigate();
@@ -10,30 +11,17 @@ export default function Layout({ children }) {
   // Auto-redirect from root path
   useEffect(() => {
     if (location.pathname === '/') {
-      window.location.href = '/Home';
+      navigate('/Home');  // שינינו ל-H גדולה
     }
   }, [location.pathname]);
 
-  // Handle login redirect
-  useEffect(() => {
-    // Detect if we're being redirected to login page
-    const currentUrl = window.location.href;
-    if (currentUrl.includes('login') || currentUrl.includes('auth')) {
-      // Get target URL from query params if it exists
-      const urlParams = new URLSearchParams(window.location.search);
-      const targetUrl = urlParams.get('from_url') || urlParams.get('redirect') || '/Home';
-      
-      // Direct redirect to bypass login
-      window.location.href = targetUrl;
-    }
-  }, [window.location.href]);
-
   const goToHome = () => {
-    window.location.href = '/Home';
+    navigate('/Home');  // שינינו ל-H גדולה
   };
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
+      <NetlifyHandler />
       {children}
       
       {/* כשרות הודעה - שיפור נראות */}
@@ -52,6 +40,19 @@ export default function Layout({ children }) {
           </button>
         </div>
       </nav>
+
+      {/* Script injection for Netlify redirects */}
+      <script dangerouslySetInnerHTML={{ __html: `
+        // Check if we're on Netlify
+        if (window.location.hostname.includes('netlify')) {
+          // If we're being redirected to login page
+          if (window.location.href.includes('login') || window.location.href.includes('auth')) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetUrl = urlParams.get('from_url') || urlParams.get('redirect') || '/Home';
+            window.location.replace(targetUrl);
+          }
+        }
+      `}} />
     </div>
   );
 }

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { createPageUrl } from "@/utils";
 import { MenuSchedule } from "@/api/entities";
+import NetlifyHandler from "../components/NetlifyHandler";
 
 export default function Menu() {
   const location = useLocation();
@@ -280,6 +281,7 @@ export default function Menu() {
 
   return (
     <div className="max-w-md mx-auto pb-20">
+      <NetlifyHandler />
       <header className="bg-red-600 text-white p-4 flex justify-between items-center">
         <Button 
           variant="ghost" 
