@@ -3,20 +3,32 @@ import React, { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Home } from "lucide-react";
 import { createPageUrl } from "@/utils";
+import { User } from "@/api/entities";
 
 export default function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Redirect to Home on first load if we're at root
+  // Try to bypass authentication
   useEffect(() => {
+    // Skip login page if redirected from there
+    const currentUrl = window.location.href;
+    if (currentUrl.includes('login?from_url=')) {
+      const targetUrl = new URL(currentUrl).searchParams.get('from_url');
+      if (targetUrl) {
+        window.location.href = targetUrl;
+        return;
+      }
+    }
+
+    // Redirect to Home on first load if we're at root
     if (location.pathname === '/') {
-      navigate('/Home');  // שינינו ל-H גדולה
+      navigate('/Home');
     }
   }, [location.pathname]);
 
   const goToHome = () => {
-    navigate('/Home');  // שינינו ל-H גדולה
+    navigate('/Home');
   };
 
   return (
