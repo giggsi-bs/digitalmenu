@@ -12,6 +12,10 @@ import MenuSchedules from "./MenuSchedules";
 
 import Asi from "./Asi";
 
+import NotAuth from "./NotAuth";
+
+import Start from "./Start";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
 const PAGES = {
@@ -27,6 +31,10 @@ const PAGES = {
     MenuSchedules: MenuSchedules,
     
     Asi: Asi,
+    
+    NotAuth: NotAuth,
+    
+    Start: Start,
     
 }
 
@@ -66,6 +74,10 @@ function PagesContent() {
                 <Route path="/MenuSchedules" element={<MenuSchedules />} />
                 
                 <Route path="/Asi" element={<Asi />} />
+                
+                <Route path="/NotAuth" element={<NotAuth />} />
+                
+                <Route path="/Start" element={<Start />} />
                 
             </Routes>
         </Layout>

@@ -3,7 +3,7 @@ import React, { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Home } from "lucide-react";
 
-export default function Layout({ children }) {
+export default function Layout({ children, currentPageName }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -36,13 +36,18 @@ export default function Layout({ children }) {
   // Regular navigation
   useEffect(() => {
     if (location.pathname === '/') {
-      navigate('/Home');
+      navigate('/Start'); // Go to Start page which doesn't need auth
     }
   }, [location.pathname, navigate]);
 
   const goToHome = () => {
     navigate('/Home');
   };
+
+  // Don't show layout for Start or NotAuth pages
+  if (currentPageName === 'Start' || currentPageName === 'NotAuth') {
+    return children;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
