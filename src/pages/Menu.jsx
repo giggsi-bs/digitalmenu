@@ -40,6 +40,10 @@ export default function Menu() {
   }, []);
 
   useEffect(() => {
+    loadData();
+  }, [categoryId]);
+
+  useEffect(() => {
     if (categoryId) {
       loadData();
     } else if (categories.length > 0) {
@@ -106,35 +110,38 @@ export default function Menu() {
     setLoading(true);
     try {
       const [categoryData, menuItems] = await Promise.all([
-        Category.get(categoryId),
-        MenuItem.filter({ category_id: categoryId }, 'display_order')
+        Category.get(categoryId).catch(() => null),  // אם נכשל, נחזיר null
+        MenuItem.filter({ category_id: categoryId }, 'display_order').catch(() => [])  // אם נכשל, נחזיר מערך ריק
       ]);
-      setCategory(categoryData);
-      
-      // פילטור הפריטים על פי התפריט הפעיל
-      let filteredItems = [...menuItems];
-      
-      if (activeSchedule) {
-        // אם יש תפריט פעיל, הצג רק פריטים שמוגדרים בתפריט זה או פריטים שלא משויכים לאף תפריט
-        filteredItems = menuItems.filter(item => 
-          item.is_active && (
-            !item.menu_schedules || // אם אין הגדרת תפריטים למנה
-            item.menu_schedules.length === 0 || // אם רשימת התפריטים ריקה
-            item.menu_schedules.includes(activeSchedule.id) // אם המנה משויכת לתפריט הפעיל
-          )
-        );
-      } else {
-        // אם אין תפריט פעיל, הצג את כל המנות הפעילות
-        filteredItems = menuItems.filter(item => item.is_active);
-      }
-      
-      setItems(filteredItems);
 
-      // Load all addon groups for this category's items
-      const groupIds = [...new Set(filteredItems.flatMap(item => item.addon_groups || []))];
-      if (groupIds.length) {
-        const groups = await Promise.all(groupIds.map(id => AddonGroup.get(id)));
-        setAddonGroups(groups);
+      if (categoryData) {
+        setCategory(categoryData);
+        
+        // פילטור הפריטים על פי התפריט הפעיל
+        let filteredItems = [...menuItems];
+        
+        if (activeSchedule) {
+          filteredItems = menuItems.filter(item => 
+            item.is_active && (
+              !item.menu_schedules || 
+              item.menu_schedules.length === 0 || 
+              item.menu_schedules.includes(activeSchedule.id)
+            )
+          );
+        } else {
+          filteredItems = menuItems.filter(item => item.is_active);
+        }
+        
+        setItems(filteredItems);
+
+        // Load all addon groups for this category's items
+        const groupIds = [...new Set(filteredItems.flatMap(item => item.addon_groups || []))];
+        if (groupIds.length) {
+          const groups = await Promise.all(
+            groupIds.map(id => AddonGroup.get(id).catch(() => null))
+          );
+          setAddonGroups(groups.filter(Boolean));  // סינון של null values
+        }
       }
     } catch (error) {
       console.error("Error loading menu data:", error);

@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { User } from "@/api/entities";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -24,9 +25,16 @@ export default function Home() {
   }, []);
 
   const loadCategories = async () => {
-    const items = await Category.list('display_order');
-    setCategories(items);
-    setLoading(false);
+    try {
+      const items = await Category.list('display_order');
+      setCategories(items);
+    } catch (error) {
+      // אם יש שגיאת הרשאות, נתעלם ממנה ופשוט נמשיך
+      console.error("Error loading categories:", error);
+      setCategories([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getName = (category) => {
